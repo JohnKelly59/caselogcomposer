@@ -2,8 +2,6 @@ import { useState, useEffect } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/router";
 import { Container, TextField, Button, Typography, Box, Paper } from "@mui/material";
-import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
-import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 
 export default function UploadPage() {
   const { data: session, status } = useSession();
@@ -15,7 +13,7 @@ export default function UploadPage() {
   const [clerkship, setClerkship] = useState("");
   const [coursePrefix, setCoursePrefix] = useState("");
   const [file, setFile] = useState(null);
-  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState("");
   const [message, setMessage] = useState("");
   const [processing, setProcessing] = useState(false);
   const [downloadReady, setDownloadReady] = useState(false);
@@ -46,11 +44,7 @@ export default function UploadPage() {
     formData.append("supervisor", supervisor);
     formData.append("clerkship", clerkship);
     formData.append("coursePrefix", coursePrefix);
-    // Format the date as YYYY-MM-DD.
-    const formattedDate = `${selectedDate.getFullYear()}-${(selectedDate.getMonth() + 1)
-      .toString().padStart(2, "0")}-${selectedDate.getDate().toString().padStart(2, "0")}`;
-    formData.append("date", formattedDate);
-    // Also send the userName (from session)
+    formData.append("date", selectedDate); // Date is already in YYYY-MM-DD format.
     formData.append("userName", session.user.name || "UnknownUser");
 
     try {
@@ -72,23 +66,22 @@ export default function UploadPage() {
     }
   }
 
-  // Handle download: get the URLs from the API and then trigger downloads automatically.
   async function handleDownload() {
     try {
       const res = await fetch(`/api/list-pdfs?userName=${encodeURIComponent(session.user.name)}`);
       if (!res.ok) {
-        throw new Error('Download failed');
+        throw new Error("Download failed");
       }
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
+      const link = document.createElement("a");
       link.href = url;
-      link.setAttribute('download', 'caselogs.zip');
+      link.setAttribute("download", "caselogs.zip");
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
     } catch (error) {
-      console.error('Error downloading ZIP:', error);
+      console.error("Error downloading ZIP:", error);
     }
   }
 
@@ -136,17 +129,20 @@ export default function UploadPage() {
               required
             />
 
-            {/* Date Picker Field */}
-            <LocalizationProvider dateAdapter={AdapterDateFns}>
-              <DatePicker
-                label="Select Date"
+            {/* Replace date picker with HTML date input */}
+            <Box>
+              <label htmlFor="date-picker">
+                <Typography>Select Date</Typography>
+              </label>
+              <input
+                id="date-picker"
+                type="date"
                 value={selectedDate}
-                onChange={(newValue) => setSelectedDate(newValue)}
-                renderInput={(params) => <TextField {...params} required />}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                required
               />
-            </LocalizationProvider>
+            </Box>
 
-            {/* File input: show button if no file selected, otherwise show file name */}
             {file ? (
               <Typography variant="body1">Selected File: {file.name}</Typography>
             ) : (
