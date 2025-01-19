@@ -1,0 +1,184 @@
+import { useState, useEffect } from "react";
+import { useSession, signOut } from "next-auth/react";
+import { useRouter } from "next/router";
+import { Container, TextField, Button, Typography, Box, Paper } from "@mui/material";
+import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
+import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
+
+export default function UploadPage() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
+
+  const [studentName, setStudentName] = useState("");
+  const [hospital, setHospital] = useState("");
+  const [supervisor, setSupervisor] = useState("");
+  const [clerkship, setClerkship] = useState("");
+  const [coursePrefix, setCoursePrefix] = useState("");
+  const [file, setFile] = useState(null);
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [message, setMessage] = useState("");
+  const [processing, setProcessing] = useState(false);
+  const [downloadReady, setDownloadReady] = useState(false);
+
+  // Redirect unauthenticated users to the sign-in page.
+  useEffect(() => {
+    if (status !== "loading" && !session) {
+      router.push("/auth/signin");
+    }
+  }, [session, status, router]);
+
+  if (status === "loading" || !session) return <Typography>Loading...</Typography>;
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    if (!file) {
+      setMessage("Please select an XLSX file.");
+      return;
+    }
+    setProcessing(true);
+    setMessage("");
+    setDownloadReady(false);
+
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("studentName", studentName);
+    formData.append("hospital", hospital);
+    formData.append("supervisor", supervisor);
+    formData.append("clerkship", clerkship);
+    formData.append("coursePrefix", coursePrefix);
+    // Format the date as YYYY-MM-DD.
+    const formattedDate = `${selectedDate.getFullYear()}-${(selectedDate.getMonth() + 1)
+      .toString().padStart(2, "0")}-${selectedDate.getDate().toString().padStart(2, "0")}`;
+    formData.append("date", formattedDate);
+    // Also send the userName (from session)
+    formData.append("userName", session.user.name || "UnknownUser");
+
+    try {
+      const res = await fetch("/api/process", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setMessage(`Processing complete. ${data.message}`);
+        setDownloadReady(true); // Signal to show the download button.
+      } else {
+        setMessage(`Error: ${data.error}`);
+      }
+    } catch (error) {
+      setMessage("An error occurred while uploading the file.");
+    } finally {
+      setProcessing(false);
+    }
+  }
+
+  // Handle download: get the URLs from the API and then trigger downloads automatically.
+  async function handleDownload() {
+    try {
+      const res = await fetch(`/api/list-pdfs?userName=${encodeURIComponent(session.user.name)}`);
+      if (!res.ok) {
+        throw new Error('Download failed');
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'caselogs.zip');
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error('Error downloading ZIP:', error);
+    }
+  }
+
+  return (
+    <Container maxWidth="md" sx={{ mt: 4 }}>
+      <Paper sx={{ p: 4, mb: 4 }}>
+        <Box display="flex" justifyContent="space-between" alignItems="center">
+          <Typography variant="h4">Upload Case Logs XLSX</Typography>
+          <Button variant="outlined" onClick={() => signOut()}>
+            Sign Out
+          </Button>
+        </Box>
+      </Paper>
+      <Paper sx={{ p: 4 }}>
+        <form onSubmit={handleSubmit} encType="multipart/form-data">
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            <TextField
+              label="Student Name"
+              value={studentName}
+              onChange={(e) => setStudentName(e.target.value)}
+              required
+            />
+            <TextField
+              label="Hospital/Clinical Site"
+              value={hospital}
+              onChange={(e) => setHospital(e.target.value)}
+              required
+            />
+            <TextField
+              label="Supervising Faculty"
+              value={supervisor}
+              onChange={(e) => setSupervisor(e.target.value)}
+              required
+            />
+            <TextField
+              label="Clerkship Name"
+              value={clerkship}
+              onChange={(e) => setClerkship(e.target.value)}
+              required
+            />
+            <TextField
+              label="Course Prefix"
+              value={coursePrefix}
+              onChange={(e) => setCoursePrefix(e.target.value)}
+              required
+            />
+
+            {/* Date Picker Field */}
+            <LocalizationProvider dateAdapter={AdapterDateFns}>
+              <DatePicker
+                label="Select Date"
+                value={selectedDate}
+                onChange={(newValue) => setSelectedDate(newValue)}
+                renderInput={(params) => <TextField {...params} required />}
+              />
+            </LocalizationProvider>
+
+            {/* File input: show button if no file selected, otherwise show file name */}
+            {file ? (
+              <Typography variant="body1">Selected File: {file.name}</Typography>
+            ) : (
+              <Button variant="contained" component="label">
+                Select XLSX File
+                <input
+                  type="file"
+                  accept=".xlsx"
+                  hidden
+                  onChange={(e) => setFile(e.target.files[0])}
+                  required
+                />
+              </Button>
+            )}
+
+            <Button variant="contained" color="primary" type="submit" disabled={processing}>
+              {processing ? "Processing..." : "Upload and Process"}
+            </Button>
+
+            {downloadReady && (
+              <Button variant="contained" color="secondary" onClick={handleDownload}>
+                Download Your PDFs
+              </Button>
+            )}
+          </Box>
+        </form>
+        {message && (
+          <Typography variant="body1" sx={{ mt: 2 }}>
+            {message}
+          </Typography>
+        )}
+      </Paper>
+    </Container>
+  );
+}
