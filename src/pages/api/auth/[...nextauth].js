@@ -18,7 +18,3 @@ export default NextAuth({
     },
   },
 });
-
-export async function handler(req, res) {
-  console.log("NEXTAUTH_SECRET:", process.env.NEXTAUTH_SECRET ? "Loaded" : "Not Loaded");
-}

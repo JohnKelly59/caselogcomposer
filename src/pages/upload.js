@@ -136,8 +136,6 @@ export default function UploadPage() {
               onChange={(e) => setCoursePrefix(e.target.value)}
               required
             />
-
-            {/* Date input */}
             <Box>
               <label htmlFor="date-picker">
                 <Typography>Select Date</Typography>
