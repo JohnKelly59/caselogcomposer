@@ -7,7 +7,7 @@ import AWS from 'aws-sdk';
 
 // Configure AWS S3
 const s3 = new AWS.S3({
-  region: process.env.REGION, // Ensure these environment variables are set.
+  region: process.env.AWS_REGION, // Ensure these environment variables are set.
 });
 const PDF_TEMPLATE_BUCKET = process.env.PDF_TEMPLATE_BUCKET; // e.g., "your-pdf-bucket"
 const PDF_TEMPLATE_KEY = process.env.PDF_TEMPLATE_KEY || 'template.pdf';
