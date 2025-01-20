@@ -21,6 +21,7 @@ export default function SignIn() {
         <Typography variant="body1" gutterBottom>
           Sign in with your Google account to continue.
         </Typography>
+        {console.log("NextAuth Secret:", process.env.NEXTAUTH_SECRET ? "Loaded" : "Not Loaded");}
         <Button 
           variant="contained" 
           color="primary" 
