@@ -3,6 +3,7 @@ import { signIn } from "next-auth/react";
 import { Container, Button, Typography, Box } from "@mui/material";
 
 export default function SignIn() {
+  console.log("NextAuth Secret:", process.env.NEXTAUTH_SECRET ? "Loaded" : "Not Loaded");
   return (
     <Container maxWidth="sm" sx={{ mt: 8 }}>
       <Box
@@ -21,7 +22,6 @@ export default function SignIn() {
         <Typography variant="body1" gutterBottom>
           Sign in with your Google account to continue.
         </Typography>
-        {console.log("NextAuth Secret:", process.env.NEXTAUTH_SECRET ? "Loaded" : "Not Loaded");}
         <Button 
           variant="contained" 
           color="primary" 
