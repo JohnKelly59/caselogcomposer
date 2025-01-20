@@ -3,7 +3,6 @@ import { signIn } from "next-auth/react";
 import { Container, Button, Typography, Box } from "@mui/material";
 
 export default function SignIn() {
-  console.log("NextAuth Secret:", process.env.NEXTAUTH_SECRET ? "Loaded" : "Not Loaded");
   return (
     <Container maxWidth="sm" sx={{ mt: 8 }}>
       <Box

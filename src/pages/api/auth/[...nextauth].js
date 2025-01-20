@@ -1,4 +1,3 @@
-// pages/api/auth/[...nextauth].js
 import NextAuth from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 
@@ -19,3 +18,7 @@ export default NextAuth({
     },
   },
 });
+
+export async function handler(req, res) {
+  console.log("NEXTAUTH_SECRET:", process.env.NEXTAUTH_SECRET ? "Loaded" : "Not Loaded");
+}
