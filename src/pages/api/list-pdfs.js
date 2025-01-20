@@ -1,5 +1,6 @@
 import { createRouter } from 'next-connect';
 import AWS from 'aws-sdk';
+import { PassThrough } from 'stream';
 import archiver from 'archiver';
 
 const s3 = new AWS.S3({
@@ -18,42 +19,62 @@ router.get(async (req, res) => {
       return res.status(400).json({ error: 'Username is required.' });
     }
 
+    // 1) List the user's objects in S3
     const prefix = `${userName}/`;
-    const data = await s3
-      .listObjectsV2({ Bucket: OUTPUT_BUCKET, Prefix: prefix })
-      .promise();
+    const data = await s3.listObjectsV2({
+      Bucket: OUTPUT_BUCKET,
+      Prefix: prefix,
+    }).promise();
 
     if (!data.Contents || data.Contents.length === 0) {
       return res.status(404).json({ error: 'No files found for the user.' });
     }
 
-    // Set response headers for a ZIP file
-    res.setHeader('Content-Type', 'application/zip');
-    res.setHeader('Content-Disposition', 'attachment; filename="pdfs.zip"');
+    // 2) Create a PassThrough stream that archiver can pipe into
+    const passThroughStream = new PassThrough();
 
-    // Create a zip archive and pipe it to the response
+    // 3) Create the archive in memory (via archiver) and pipe it to passThrough
     const archive = archiver('zip', { zlib: { level: 9 } });
-    archive.pipe(res);
+    archive.pipe(passThroughStream);
 
+    // 4) Append each file from S3 into the archive
     for (const item of data.Contents) {
       const fileStream = s3
         .getObject({ Bucket: OUTPUT_BUCKET, Key: item.Key })
         .createReadStream();
+
       const fileName = item.Key.split('/').pop(); // Get the base file name
       archive.append(fileStream, { name: fileName });
     }
 
-    // Finalize the archive (triggers the response download)
+    // 5) Finalize the archive (this starts streaming to passThrough)
     archive.finalize();
 
-    // Handle stream errors
-    archive.on('error', (err) => {
-      console.error('Archive error:', err);
-      res.status(500).json({ error: 'Error creating ZIP archive.' });
+    // 6) Upload the generated ZIP to S3
+    //    We'll store it under e.g. `${userName}/pdfs.zip`
+    const zipKey = `${userName}/pdfs.zip`;
+    const uploadParams = {
+      Bucket: OUTPUT_BUCKET,
+      Key: zipKey,
+      Body: passThroughStream,
+      ContentType: 'application/zip',
+    };
+
+    // Wait until the entire upload completes
+    await s3.upload(uploadParams).promise();
+
+    // 7) Generate a pre-signed URL for the client to download the ZIP directly
+    const signedUrl = await s3.getSignedUrlPromise('getObject', {
+      Bucket: OUTPUT_BUCKET,
+      Key: zipKey,
+      Expires: 60, // link valid for 1 minute (adjust as needed)
     });
+
+    // 8) Return the pre-signed URL to the client
+    return res.status(200).json({ url: signedUrl });
   } catch (error) {
-    console.error('Error retrieving files:', error);
-    res.status(500).json({ error: 'Error retrieving files.' });
+    console.error('Error creating/serving ZIP:', error);
+    return res.status(500).json({ error: 'Error generating ZIP file.' });
   }
 });
 

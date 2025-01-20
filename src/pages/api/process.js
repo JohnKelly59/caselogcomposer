@@ -39,7 +39,7 @@ router.post(async (req, res) => {
     const selectedDate = req.body.date; // Expected format: YYYY-MM-DD
     // Use the student name as the folder name for storing output PDFs.
     const userName = req.body.userName || "UnknownUser";
-console.log("userName", userName);
+
     // Determine file type (CSV or XLSX) and create a workbook accordingly.
     let workbook;
     if (

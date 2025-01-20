@@ -17,6 +17,9 @@ export default function UploadPage() {
   const [message, setMessage] = useState("");
   const [processing, setProcessing] = useState(false);
   const [downloadReady, setDownloadReady] = useState(false);
+  
+  // New state to track the download process
+  const [isDownloading, setIsDownloading] = useState(false);
 
   // Redirect unauthenticated users to the sign-in page.
   useEffect(() => {
@@ -44,7 +47,7 @@ export default function UploadPage() {
     formData.append("supervisor", supervisor);
     formData.append("clerkship", clerkship);
     formData.append("coursePrefix", coursePrefix);
-    formData.append("date", selectedDate); // Date is already in YYYY-MM-DD format.
+    formData.append("date", selectedDate);
     formData.append("userName", session.user.name || "UnknownUser");
 
     try {
@@ -55,11 +58,12 @@ export default function UploadPage() {
       const data = await res.json();
       if (res.ok) {
         setMessage(`Processing complete. ${data.message}`);
-        setDownloadReady(true); // Signal to show the download button.
+        setDownloadReady(true); // Show the download button
       } else {
         setMessage(`Error: ${data.error}`);
       }
     } catch (error) {
+      console.error(error);
       setMessage("An error occurred while uploading the file.");
     } finally {
       setProcessing(false);
@@ -68,20 +72,23 @@ export default function UploadPage() {
 
   async function handleDownload() {
     try {
-      const res = await fetch(`/api/list-pdfs?userName=${encodeURIComponent(session.user.name)}`);
-      if (!res.ok) {
-        throw new Error("Download failed");
+      setIsDownloading(true);          // Start the "downloading" state
+      const response = await fetch(
+        `/api/list-pdfs?userName=${encodeURIComponent(session.user.name)}`
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to get presigned URL");
       }
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", "caselogs.zip");
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+
+      const { url } = await response.json();
+      // Download the ZIP directly from S3
+      window.location.href = url;
     } catch (error) {
       console.error("Error downloading ZIP:", error);
+      alert("Could not download ZIP file");
+    } finally {
+      setIsDownloading(false);         // End the "downloading" state
     }
   }
 
@@ -95,6 +102,7 @@ export default function UploadPage() {
           </Button>
         </Box>
       </Paper>
+
       <Paper sx={{ p: 4 }}>
         <form onSubmit={handleSubmit} encType="multipart/form-data">
           <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
@@ -129,7 +137,7 @@ export default function UploadPage() {
               required
             />
 
-            {/* Replace date picker with HTML date input */}
+            {/* Date input */}
             <Box>
               <label htmlFor="date-picker">
                 <Typography>Select Date</Typography>
@@ -163,12 +171,18 @@ export default function UploadPage() {
             </Button>
 
             {downloadReady && (
-              <Button variant="contained" color="secondary" onClick={handleDownload}>
-                Download Your PDFs
+              <Button
+                variant="contained"
+                color="secondary"
+                onClick={handleDownload}
+                disabled={isDownloading}
+              >
+                {isDownloading ? "Downloading..." : "Download Your PDFs"}
               </Button>
             )}
           </Box>
         </form>
+
         {message && (
           <Typography variant="body1" sx={{ mt: 2 }}>
             {message}
