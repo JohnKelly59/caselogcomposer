@@ -36,39 +36,6 @@ async function run ()
       mediaType: { format: 'diff' },
     });
 
-    // --- Remove previous auto-generated documentation comments ---
-    console.log('Removing previous auto-generated documentation comments...');
-
-    // List all comments on the current PR
-    const commentsResponse = await octokit.rest.issues.listComments({
-      owner,
-      repo,
-      issue_number: pull_number,
-    });
-
-    for (const comment of commentsResponse.data)
-    {
-      // Check two things:
-      //  1) Is the body not null, and does it contain the auto-docs signature?
-      //  2) Was it created by a bot (optional but recommended)
-      const bodyIncludesAutoDocs =
-        comment.body && comment.body.includes('<!-- auto-docs -->');
-      const isBotComment =
-        comment.user?.type === 'Bot' ||
-        comment.user?.login?.endsWith('[bot]') ||
-        comment.user?.login === 'github-actions[bot]';
-
-      if (bodyIncludesAutoDocs && isBotComment)
-      {
-        await octokit.rest.issues.deleteComment({
-          owner,
-          repo,
-          comment_id: comment.id,
-        });
-        console.log(`Deleted comment ID: ${comment.id}`);
-      }
-    }
-
     // --- Developer-Savvy Documentation (for PR Comment) ---
     const promptDev = `
       The following is a Git diff of changes in this Pull Request compared to the "main" branch.
@@ -85,8 +52,7 @@ async function run ()
       messages: [
         {
           role: 'system',
-          content:
-            'You are a helpful documentation generator that creates nicely formatted README.md content for developers.',
+          content: 'You are a helpful documentation generator that creates nicely formatted README.md content for developers.',
         },
         {
           role: 'user',
