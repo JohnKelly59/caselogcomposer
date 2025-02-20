@@ -16,39 +16,32 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v2
         with:
-          python-version: "3.x"
+          python-version: "3.8"
 
-      - name: Install OpenAI (1.0.0 or later)
+      - name: Install OpenAI
         run: |
           pip install --upgrade pip
-          pip install openai
+          pip install openai==1.0.0
 
       - name: Generate changelog entry
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          # For demonstration, we’re using the commit message as "DIFF". 
-          # You can replace this with a real diff if you prefer (see below).
           DIFF: ${{ github.event.head_commit.message }}
         run: |
           RESPONSE=$(python <<'EOF'
-          import os
           import openai
+          import os
 
-          openai.api_key = os.getenv("OPENAI_API_KEY")
+          client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-          # Get the commit message or any other "diff" text
-          diff_text = os.getenv("DIFF", "")
-
-          # Using the new openai.chat.completions interface (openai>=1.0.0)
-          response = openai.chat.completions.create(
-              model="gpt-4",  # or "gpt-3.5-turbo" if desired
+          response = client.chat.completions.create(
+              model="gpt-3.5-turbo",
               messages=[
                   {"role": "system", "content": "You are a documentation assistant."},
-                  {"role": "user", "content": f"Generate a changelog entry for the following Git diff:\n{diff_text}"}
+                  {"role": "user", "content": f"Generate a changelog entry for the following Git diff:\n{os.getenv('DIFF', '')}"}
               ]
           )
 
-          # Print out just the AI-generated content
           print(response.choices[0].message.content)
           EOF
           )
