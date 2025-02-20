@@ -21,7 +21,7 @@ jobs:
       - name: Install OpenAI
         run: |
           pip install --upgrade pip
-          pip install openai==1.0.0
+          pip install openai==1.0.0 httpx>=0.23.0
 
       - name: Generate changelog entry
         env:
