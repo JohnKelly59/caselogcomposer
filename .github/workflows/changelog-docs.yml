@@ -8,6 +8,7 @@ on:
 jobs:
   changelog:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repo
         uses: actions/checkout@v2
@@ -17,13 +18,16 @@ jobs:
         with:
           python-version: "3.x"
 
-      - name: Install dependencies
-        run: pip install openai
+      - name: Install OpenAI (1.0.0 or later)
+        run: |
+          pip install --upgrade pip
+          pip install openai
 
       - name: Generate changelog entry
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          # Adjust DIFF environment variable as needed.
+          # For demonstration, we’re using the commit message as "DIFF". 
+          # You can replace this with a real diff if you prefer (see below).
           DIFF: ${{ github.event.head_commit.message }}
         run: |
           RESPONSE=$(python <<'EOF'
@@ -31,15 +35,21 @@ jobs:
           import openai
 
           openai.api_key = os.getenv("OPENAI_API_KEY")
+
+          # Get the commit message or any other "diff" text
           diff_text = os.getenv("DIFF", "")
-          response = openai.ChatCompletion.create(
-              model="gpt-4",
+
+          # Using the new openai.chat.completions interface (openai>=1.0.0)
+          response = openai.chat.completions.create(
+              model="gpt-4",  # or "gpt-3.5-turbo" if desired
               messages=[
                   {"role": "system", "content": "You are a documentation assistant."},
                   {"role": "user", "content": f"Generate a changelog entry for the following Git diff:\n{diff_text}"}
               ]
           )
-          print(response['choices'][0]['message']['content'])
+
+          # Print out just the AI-generated content
+          print(response.choices[0].message.content)
           EOF
           )
           echo -e "\n## Changes in this commit\n$RESPONSE" >> CHANGELOG.md
