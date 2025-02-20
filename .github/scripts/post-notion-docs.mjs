@@ -220,7 +220,8 @@ async function run ()
                 // --------------------------------------------------------------------
                 console.log('No matching paragraph found. Appending new paragraph under the existing heading...');
 
-                const addChildrenUrl = `https://api.notion.com/v1/blocks/${docHeadingBlock.id}/children`;
+                const addChildrenUrl = `https://api.notion.com/v1/blocks/${notionPageId}/children`;
+
                 const addChildrenBody = {
                     children: [
                         {
