@@ -1,0 +1,62 @@
+name: Auto-generate Changelog
+
+on:
+  push:
+    branches:
+      - main  
+
+jobs:
+  generate-docs:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: '3.9'
+
+      - name: Install Dependencies
+        run: pip install openai
+
+      - name: Generate Documentation
+        run: |
+          DIFF=$(git diff HEAD^ HEAD)
+          if [ -z "$DIFF" ]; then
+            echo "No changes detected."
+            exit 0
+          fi
+
+          RESPONSE=$(python3 - <<EOF
+          import os
+          import openai
+
+          openai.api_key = os.getenv("OPENAI_API_KEY")
+
+          diff_text = """${DIFF}"""
+
+          response = openai.ChatCompletion.create(
+              model="gpt-4",
+              messages=[
+                  {"role": "system", "content": "You are a documentation assistant."},
+                  {"role": "user", "content": f"Generate a changelog entry for the following Git diff:\n{diff_text}"}
+              ]
+          )
+
+          print(response['choices'][0]['message']['content'])
+          EOF
+          )
+
+          echo -e "\n## Changes in this commit\n$RESPONSE" >> CHANGELOG.md
+          git add CHANGELOG.md
+
+      - name: Commit and Push Documentation
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+          git commit -m "Auto-generate documentation from code changes" || exit 0
+          git push
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
