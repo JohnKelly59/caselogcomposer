@@ -3,6 +3,7 @@ const core = require('@actions/core');
 const github = require('@actions/github');
 const { Configuration, OpenAIApi } = require('openai');
 const fs = require('fs');
+require('dotenv').config();
 
 async function main ()
 {
