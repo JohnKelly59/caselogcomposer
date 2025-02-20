@@ -2,7 +2,8 @@
 import { signIn } from "next-auth/react";
 import { Container, Button, Typography, Box } from "@mui/material";
 
-export default function SignIn() {
+export default function SignIn ()
+{
   return (
     <Container maxWidth="sm" sx={{ mt: 8 }}>
       <Box
@@ -21,9 +22,9 @@ export default function SignIn() {
         <Typography variant="body1" gutterBottom>
           Sign in with your Google account to continue.
         </Typography>
-        <Button 
-          variant="contained" 
-          color="primary" 
+        <Button
+          variant="contained"
+          color="primary"
           onClick={() => signIn("google")}
           sx={{ mt: 3 }}
         >
