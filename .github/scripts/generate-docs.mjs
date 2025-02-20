@@ -33,7 +33,7 @@ async function generateDocumentation ()
 
     // Make a call to the OpenAI API with the gpt-4o model
     const response = await openai.chat.completions.create({
-      model: 'gpt-4',
+      model: 'gpt-4o',
       messages: [
         { role: 'system', content: 'You are a documentation generator.' },
         { role: 'user', content: prompt }
