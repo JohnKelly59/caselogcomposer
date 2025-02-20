@@ -15,6 +15,11 @@ async function generateDocumentation ()
       throw new Error('OPENAI_API_KEY environment variable is not set.');
     }
 
+    function sleep (ms)
+    {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
     console.log('Waiting before making API request...');
     await sleep(5000);
 
