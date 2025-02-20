@@ -1,36 +1,53 @@
-- name: Generate Documentation
-  run: |
-    COMMIT_COUNT=$(git rev-list --count HEAD)
-    if [ "$COMMIT_COUNT" -lt 2 ]; then
-      echo "Only one (or zero) commits in the repository—skipping diff."
-      exit 0
-    fi
+name: Generate Changelog Entry
 
-    DIFF=$(git diff HEAD^ HEAD)
-    if [ -z "$DIFF" ]; then
-      echo "No changes detected."
-      exit 0
-    fi
+on:
+  push:
+    branches:
+      - main
 
-    RESPONSE=$(python3 - <<EOF
-import os
-import openai
+jobs:
+  changelog:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v2
 
-openai.api_key = os.getenv("OPENAI_API_KEY")
+      - name: Setup Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.x"
 
-diff_text = """${DIFF}"""
+      - name: Install dependencies
+        run: pip install openai
 
-response = openai.ChatCompletion.create(
-    model="gpt-4",
-    messages=[
-        {"role": "system", "content": "You are a documentation assistant."},
-        {"role": "user", "content": f"Generate a changelog entry for the following Git diff:\n{diff_text}"}
-    ]
-)
+      - name: Generate changelog entry
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          # Adjust DIFF environment variable as needed.
+          DIFF: ${{ github.event.head_commit.message }}
+        run: |
+          RESPONSE=$(python <<'EOF'
+          import os
+          import openai
 
-print(response['choices'][0]['message']['content'])
+          openai.api_key = os.getenv("OPENAI_API_KEY")
+          diff_text = os.getenv("DIFF", "")
+          response = openai.ChatCompletion.create(
+              model="gpt-4",
+              messages=[
+                  {"role": "system", "content": "You are a documentation assistant."},
+                  {"role": "user", "content": f"Generate a changelog entry for the following Git diff:\n{diff_text}"}
+              ]
+          )
+          print(response['choices'][0]['message']['content'])
 EOF
-    )
+          )
+          echo -e "\n## Changes in this commit\n$RESPONSE" >> CHANGELOG.md
+          git add CHANGELOG.md
 
-    echo -e "\n## Changes in this commit\n$RESPONSE" >> CHANGELOG.md
-    git add CHANGELOG.md
+      - name: Commit and push changelog
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git commit -m "Update changelog"
+          git push

@@ -16,6 +16,7 @@
     "@mui/material": "^6.4.0",
     "archiver": "^7.0.1",
     "aws-sdk": "^2.1692.0",
+    "dotenv": "^16.4.7",
     "multer": "^1.4.5-lts.1",
     "next": "15.1.5",
     "next-auth": "^4.24.11",
