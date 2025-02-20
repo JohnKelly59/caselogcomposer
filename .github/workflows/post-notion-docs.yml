@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - main
+    types: [closed]
 
 permissions:
   contents: read
@@ -12,6 +13,7 @@ permissions:
 
 jobs:
   post-notion-docs:
+    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
