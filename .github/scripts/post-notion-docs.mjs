@@ -61,6 +61,24 @@ function isSimilar (str1, str2)
     return str1.includes(str2) || str2.includes(str1);
 }
 
+/**
+ * Splits a given text into chunks with a maximum length.
+ * @param {string} text - The text to split.
+ * @param {number} maxLength - Maximum allowed length per chunk (default 2000).
+ * @returns {string[]} Array of text chunks.
+ */
+function splitTextIntoChunks (text, maxLength = 2000)
+{
+    const chunks = [];
+    let start = 0;
+    while (start < text.length)
+    {
+        chunks.push(text.substring(start, start + maxLength));
+        start += maxLength;
+    }
+    return chunks;
+}
+
 async function run ()
 {
     try
@@ -139,6 +157,9 @@ async function run ()
         const currentDate = new Date().toLocaleString(); // e.g. "2/23/2025, 3:45:18 PM"
         const newTextWithDate = `Last updated on ${currentDate}:\n${highLevelDocs}`;
 
+        // Split the newTextWithDate into chunks that do not exceed 2000 characters
+        const chunks = splitTextIntoChunks(newTextWithDate);
+
         // Fetch all existing blocks on the Notion page
         console.log('Fetching existing Notion blocks to check for duplicate documentation...');
         const existingBlocks = await getBlockChildren(notionPageId, notionToken);
@@ -176,25 +197,24 @@ async function run ()
             console.log(`Archived similar paragraph block with ID: ${block.id}`);
         }
 
-        // Append a new paragraph block to the Notion page (not nested)
-        console.log('Appending new paragraph block to the Notion page...');
-        const addChildrenUrl = `https://api.notion.com/v1/blocks/${notionPageId}/children`;
-        const addChildrenBody = {
-            children: [
-                {
-                    object: 'block',
-                    type: 'paragraph',
-                    paragraph: {
-                        rich_text: [
-                            {
-                                type: 'text',
-                                text: { content: newTextWithDate },
-                            },
-                        ],
+        // Create paragraph blocks from each text chunk
+        const childrenBlocks = chunks.map(chunk => ({
+            object: 'block',
+            type: 'paragraph',
+            paragraph: {
+                rich_text: [
+                    {
+                        type: 'text',
+                        text: { content: chunk },
                     },
-                },
-            ],
-        };
+                ],
+            },
+        }));
+
+        // Append new paragraph blocks to the Notion page
+        console.log('Appending new paragraph block(s) to the Notion page...');
+        const addChildrenUrl = `https://api.notion.com/v1/blocks/${notionPageId}/children`;
+        const addChildrenBody = { children: childrenBlocks };
 
         const addChildrenRes = await fetch(addChildrenUrl, {
             method: 'PATCH',
