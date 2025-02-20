@@ -140,28 +140,29 @@ async function run ()
         // ------------------------------------------------------------------------
         // 1) Retrieve existing blocks for the Notion page
         // ------------------------------------------------------------------------
-        console.log('Fetching existing Notion blocks to check for duplicates or relevant headings...');
+        console.log('Fetching existing Notion blocks to check for duplicates or relevant toggle...');
         const existingBlocks = await getBlockChildren(notionPageId, notionToken);
 
-        // We want to find a heading_2 block that reads "Auto-Generated Documentation"
-        const docHeadingBlock = existingBlocks.find(
+        // Look for a toggle block with the title "Auto-Generated Documentation"
+        // (Toggles support children, unlike heading blocks.)
+        const docsToggleBlock = existingBlocks.find(
             (block) =>
-                block.type === 'heading_2' &&
-                block.heading_2?.rich_text?.[0]?.plain_text === 'Auto-Generated Documentation'
+                block.type === 'toggle' &&
+                block.toggle?.rich_text?.[0]?.plain_text === 'Auto-Generated Documentation'
         );
 
         const currentDate = new Date().toLocaleString(); // e.g. "2/23/2025, 3:45:18 PM"
         const newTextWithDate = `Last updated on ${currentDate}:\n${highLevelDocs}`;
 
-        if (docHeadingBlock)
+        if (docsToggleBlock)
         {
-            console.log(`Found existing heading block with ID: ${docHeadingBlock.id}. Checking its children for similar docs...`);
+            console.log(`Found existing toggle block with ID: ${docsToggleBlock.id}. Checking its children for similar docs...`);
 
-            // Get the children of that heading block
-            const headingChildren = await getBlockChildren(docHeadingBlock.id, notionToken);
+            // Get the children of that toggle block
+            const toggleChildren = await getBlockChildren(docsToggleBlock.id, notionToken);
 
             // Find all paragraph blocks that are similar to the new documentation
-            const similarParagraphs = headingChildren.filter(
+            const similarParagraphs = toggleChildren.filter(
                 (block) =>
                     block.type === 'paragraph' &&
                     block.paragraph?.rich_text?.[0]?.plain_text &&
@@ -187,15 +188,17 @@ async function run ()
                 if (!patchRes.ok)
                 {
                     const errorBody = await patchRes.text();
-                    throw new Error(`Failed to archive paragraph block with ID ${block.id}. Status: ${patchRes.status}. Body: ${errorBody}`);
+                    throw new Error(
+                        `Failed to archive paragraph block with ID ${block.id}. Status: ${patchRes.status}. Body: ${errorBody}`
+                    );
                 }
 
                 console.log(`Archived similar paragraph block with ID: ${block.id}`);
             }
 
-            // Append a new paragraph block under the existing heading
-            console.log('Appending new paragraph block under the existing heading...');
-            const addChildrenUrl = `https://api.notion.com/v1/blocks/${docHeadingBlock.id}/children`;
+            // Append a new paragraph block under the existing toggle block
+            console.log('Appending new paragraph block to the existing toggle block...');
+            const addChildrenUrl = `https://api.notion.com/v1/blocks/${docsToggleBlock.id}/children`;
             const addChildrenBody = {
                 children: [
                     {
@@ -226,40 +229,44 @@ async function run ()
             if (!addChildrenRes.ok)
             {
                 const errorBody = await addChildrenRes.text();
-                throw new Error(`Failed to append new paragraph under existing heading. Status: ${addChildrenRes.status}. Body: ${errorBody}`);
+                throw new Error(
+                    `Failed to append new paragraph to the existing toggle block. Status: ${addChildrenRes.status}. Body: ${errorBody}`
+                );
             }
 
-            console.log('Successfully appended new paragraph under the existing heading.');
+            console.log('Successfully appended new paragraph to the existing toggle block.');
         } else
         {
             // ------------------------------------------------------------------------
-            // 3) If no heading block exists, create a new heading_2 and paragraph
+            // 2) If no toggle block exists, create a new toggle block with a child paragraph
             // ------------------------------------------------------------------------
-            console.log('No "Auto-Generated Documentation" heading found. Creating new heading & paragraph...');
+            console.log('No "Auto-Generated Documentation" toggle found. Creating new toggle & paragraph...');
 
             const notionEndpoint = `https://api.notion.com/v1/blocks/${notionPageId}/children`;
             const notionPayload = {
                 children: [
                     {
                         object: 'block',
-                        type: 'heading_2',
-                        heading_2: {
+                        type: 'toggle',
+                        toggle: {
                             rich_text: [
                                 {
                                     type: 'text',
                                     text: { content: 'Auto-Generated Documentation' },
                                 },
                             ],
-                        },
-                    },
-                    {
-                        object: 'block',
-                        type: 'paragraph',
-                        paragraph: {
-                            rich_text: [
+                            children: [
                                 {
-                                    type: 'text',
-                                    text: { content: newTextWithDate },
+                                    object: 'block',
+                                    type: 'paragraph',
+                                    paragraph: {
+                                        rich_text: [
+                                            {
+                                                type: 'text',
+                                                text: { content: newTextWithDate },
+                                            },
+                                        ],
+                                    },
                                 },
                             ],
                         },
@@ -280,10 +287,12 @@ async function run ()
             if (!notionResponse.ok)
             {
                 const errorBody = await notionResponse.text();
-                throw new Error(`Failed to post documentation to Notion (no existing heading). Status: ${notionResponse.status}. Body: ${errorBody}`);
+                throw new Error(
+                    `Failed to post documentation to Notion (no existing toggle). Status: ${notionResponse.status}. Body: ${errorBody}`
+                );
             }
 
-            console.log('Successfully created new heading & paragraph in Notion.');
+            console.log('Successfully created new toggle & paragraph in Notion.');
         }
     } catch (error)
     {
