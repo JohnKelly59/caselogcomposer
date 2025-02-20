@@ -1,4 +1,4 @@
-
+// Rename this file to generate-docs.mjs or add "type": "module" to package.json
 
 import OpenAI from 'openai';
 import * as core from '@actions/core';
@@ -23,15 +23,18 @@ async function generateDocumentation ()
     // Example: Prepare a prompt (modify this to use actual PR diff data)
     const prompt = 'Generate documentation based on the following changes: ...';
 
-    // Make a call to the OpenAI API
-    const response = await openai.completions.create({
-      model: 'text-davinci-003',
-      prompt: prompt,
+    // Make a call to the OpenAI API with the gpt-4o model
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [
+        { role: 'system', content: 'You are a documentation generator.' },
+        { role: 'user', content: prompt }
+      ],
       max_tokens: 150,
     });
 
     // Extract and log the generated documentation
-    const docs = response.choices[0].text.trim();
+    const docs = response.choices[0].message.content.trim();
     console.log('Generated Documentation:');
     console.log(docs);
   } catch (error)
