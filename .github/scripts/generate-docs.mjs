@@ -33,11 +33,13 @@ async function run ()
       owner,
       repo,
       pull_number,
-      mediaType: { format: 'diff' }
+      mediaType: { format: 'diff' },
     });
 
     // --- Remove previous auto-generated documentation comments ---
     console.log('Removing previous auto-generated documentation comments...');
+
+    // List all comments on the current PR
     const commentsResponse = await octokit.rest.issues.listComments({
       owner,
       repo,
@@ -46,7 +48,17 @@ async function run ()
 
     for (const comment of commentsResponse.data)
     {
-      if (comment.body && comment.body.startsWith('<!-- auto-docs -->'))
+      // Check two things:
+      //  1) Is the body not null, and does it contain the auto-docs signature?
+      //  2) Was it created by a bot (optional but recommended)
+      const bodyIncludesAutoDocs =
+        comment.body && comment.body.includes('<!-- auto-docs -->');
+      const isBotComment =
+        comment.user?.type === 'Bot' ||
+        comment.user?.login?.endsWith('[bot]') ||
+        comment.user?.login === 'github-actions[bot]';
+
+      if (bodyIncludesAutoDocs && isBotComment)
       {
         await octokit.rest.issues.deleteComment({
           owner,
@@ -58,11 +70,14 @@ async function run ()
     }
 
     // --- Developer-Savvy Documentation (for PR Comment) ---
-    const promptDev =
-      `The following is a Git diff of changes in this Pull Request compared to the "main" branch.
-Generate concise, helpful, and developer-focused README-style documentation that clearly explains what changed, why, and any technical implications. Include details that would aid code reviewers and developers.
-Diff:
-${prDiff}`;
+    const promptDev = `
+      The following is a Git diff of changes in this Pull Request compared to the "main" branch.
+      Generate concise, helpful, and developer-focused README-style documentation that clearly
+      explains what changed, why, and any technical implications. Include details that would
+      aid code reviewers and developers.
+      Diff:
+      ${prDiff}
+    `;
 
     console.log('Calling OpenAI API to generate developer documentation...');
     const responseDev = await openai.chat.completions.create({
@@ -70,14 +85,15 @@ ${prDiff}`;
       messages: [
         {
           role: 'system',
-          content: 'You are a helpful documentation generator that creates nicely formatted README.md content for developers.'
+          content:
+            'You are a helpful documentation generator that creates nicely formatted README.md content for developers.',
         },
         {
           role: 'user',
-          content: promptDev
-        }
+          content: promptDev,
+        },
       ],
-      max_tokens: 800
+      max_tokens: 800,
     });
 
     const developerDocs = responseDev.choices?.[0]?.message?.content?.trim() || '';
@@ -91,7 +107,7 @@ ${prDiff}`;
       owner,
       repo,
       issue_number: pull_number,
-      body: `<!-- auto-docs -->\n## 📝 Auto-Generated Documentation (Developer View)\n\n${developerDocs}`
+      body: `<!-- auto-docs -->\n## 📝 Auto-Generated Documentation (Developer View)\n\n${developerDocs}`,
     });
     console.log('Successfully posted developer documentation as a PR comment.');
   } catch (error)
