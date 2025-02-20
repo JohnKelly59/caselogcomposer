@@ -40,7 +40,7 @@ jobs:
               ]
           )
           print(response['choices'][0]['message']['content'])
-EOF
+          EOF
           )
           echo -e "\n## Changes in this commit\n$RESPONSE" >> CHANGELOG.md
           git add CHANGELOG.md
