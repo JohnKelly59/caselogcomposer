@@ -1,0 +1,38 @@
+name: Generate & Post Notion Documentation
+
+on:
+  pull_request:
+    branches:
+      - main
+    types: [closed]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  post-notion-docs:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'
+      
+      - name: Install dependencies
+        run: npm install
+      
+      - name: Generate Notion Documentation and Post to Notion
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_PAGE_ID: ${{ secrets.NOTION_PAGE_ID }}
+        run: node .github/scripts/post-notion-docs.mjs

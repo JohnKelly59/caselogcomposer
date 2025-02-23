@@ -9,6 +9,8 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@actions/core": "^1.11.1",
+    "@actions/github": "^6.0.0",
     "@date-io/date-fns": "^3.2.0",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
@@ -21,6 +23,7 @@
     "next": "15.1.5",
     "next-auth": "^4.24.11",
     "next-connect": "^1.0.0",
+    "openai": "^4.85.3",
     "pdf-lib": "^1.17.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
