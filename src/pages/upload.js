@@ -1,8 +1,20 @@
 import { useState, useEffect } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/router";
-import { Container, TextField, Button, Typography, Box, Paper, Toolbar } from "@mui/material";
+import
+{
+  Container,
+  TextField,
+  Button,
+  Typography,
+  Box,
+  Paper,
+  Toolbar,
+  Snackbar,
+  Alert,
+} from "@mui/material";
 import Sidebar from "../components/Sidebar";
+
 export default function UploadPage ()
 {
   const { data: session, status } = useSession();
@@ -22,7 +34,12 @@ export default function UploadPage ()
   // New state to track the download process
   const [isDownloading, setIsDownloading] = useState(false);
 
-  // Redirect unauthenticated users to the sign-in page.
+  const [toast, setToast] = useState({
+    open: false,
+    message: "",
+    severity: "success",
+  });
+
   useEffect(() =>
   {
     if (status !== "loading" && !session)
@@ -31,14 +48,28 @@ export default function UploadPage ()
     }
   }, [session, status, router]);
 
-  if (status === "loading" || !session) return <Typography>Loading...</Typography>;
+  if (status === "loading" || !session)
+    return <Typography>Loading...</Typography>;
+
+  const handleToastClose = (event, reason) =>
+  {
+    if (reason === "clickaway")
+    {
+      return;
+    }
+    setToast({ ...toast, open: false });
+  };
 
   async function handleSubmit (e)
   {
     e.preventDefault();
     if (!file)
     {
-      setMessage("Please select an XLSX file.");
+      setToast({
+        open: true,
+        severity: "error",
+        message: "Please select an XLSX file.",
+      });
       return;
     }
     setProcessing(true);
@@ -65,15 +96,30 @@ export default function UploadPage ()
       if (res.ok)
       {
         setMessage(`Processing complete. ${data.message}`);
-        setDownloadReady(true); // Show the download button
+        setDownloadReady(true);
+        setToast({
+          open: true,
+          severity: "success",
+          message: `Processing complete. ${data.message}`,
+        });
       } else
       {
         setMessage(`Error: ${data.error}`);
+        setToast({
+          open: true,
+          severity: "error",
+          message: `Error: ${data.error}`,
+        });
       }
     } catch (error)
     {
       console.error(error);
       setMessage("An error occurred while uploading the file.");
+      setToast({
+        open: true,
+        severity: "error",
+        message: "An error occurred while uploading the file.",
+      });
     } finally
     {
       setProcessing(false);
@@ -84,7 +130,7 @@ export default function UploadPage ()
   {
     try
     {
-      setIsDownloading(true);          // Start the "downloading" state
+      setIsDownloading(true);
       const response = await fetch(
         `/api/list-pdfs?userName=${encodeURIComponent(session.user.name)}`
       );
@@ -95,7 +141,6 @@ export default function UploadPage ()
       }
 
       const { url } = await response.json();
-      // Download the ZIP directly from S3
       window.location.href = url;
     } catch (error)
     {
@@ -103,15 +148,13 @@ export default function UploadPage ()
       alert("Could not download ZIP file");
     } finally
     {
-      setIsDownloading(false);         // End the "downloading" state
+      setIsDownloading(false);
     }
   }
 
   return (
     <Box sx={{ display: "flex" }}>
-      {/* Sidebar */}
       <Sidebar />
-      {/* Main Content */}
       <Box
         component="main"
         sx={{ flexGrow: 1, p: 3, backgroundColor: "#f5f5f5", minHeight: "100vh" }}
@@ -188,7 +231,12 @@ export default function UploadPage ()
                   </Button>
                 )}
 
-                <Button variant="contained" color="primary" type="submit" disabled={processing}>
+                <Button
+                  variant="contained"
+                  color="primary"
+                  type="submit"
+                  disabled={processing}
+                >
                   {processing ? "Processing..." : "Upload and Process"}
                 </Button>
 
@@ -211,6 +259,20 @@ export default function UploadPage ()
             )}
           </Paper>
         </Container>
+        <Snackbar
+          open={toast.open}
+          autoHideDuration={6000}
+          onClose={handleToastClose}
+          anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+        >
+          <Alert
+            onClose={handleToastClose}
+            severity={toast.severity}
+            sx={{ width: "100%" }}
+          >
+            {toast.message}
+          </Alert>
+        </Snackbar>
       </Box>
     </Box>
   );
